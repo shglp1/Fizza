@@ -3,12 +3,30 @@ import 'package:dartz/dartz.dart';
 import 'package:fizza_core/fizza_core.dart';
 import 'package:fizza_domain/fizza_domain.dart';
 import 'package:injectable/injectable.dart';
+import '../datasources/system_config_datasource.dart';
 
 @LazySingleton(as: ITripRepository)
 class TripRepositoryImpl implements ITripRepository {
   final FirebaseFirestore _firestore;
+  final ISystemConfigDataSource _configDataSource;
 
-  TripRepositoryImpl(this._firestore);
+  TripRepositoryImpl(this._firestore, this._configDataSource);
+
+  @override
+  Future<Either<Failure, double>> calculateFare(double distanceKm) async {
+    try {
+      final config = await _configDataSource.getConfig();
+      final pricing = config.pricing;
+      
+      double fare = pricing.baseFare + (distanceKm * pricing.pricePerKm);
+      if (fare < pricing.minFare) {
+        fare = pricing.minFare;
+      }
+      return Right(fare);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 
   @override
   Future<Either<Failure, List<TripEntity>>> getTripHistory(String userId) async {

@@ -13,3 +13,5 @@ export 'src/repositories/driver_repository_impl.dart';
 export 'src/repositories/safety_repository_impl.dart';
 export 'src/repositories/loyalty_repository_impl.dart';
 export 'src/repositories/admin_repository_impl.dart';
+export 'src/models/system_config_model.dart';
+export 'src/datasources/system_config_datasource.dart';

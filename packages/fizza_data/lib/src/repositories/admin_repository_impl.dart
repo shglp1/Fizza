@@ -3,12 +3,67 @@ import 'package:dartz/dartz.dart';
 import 'package:fizza_core/fizza_core.dart';
 import 'package:fizza_domain/fizza_domain.dart';
 import 'package:injectable/injectable.dart';
+import '../datasources/system_config_datasource.dart';
+import '../models/system_config_model.dart';
 
 @LazySingleton(as: IAdminRepository)
 class AdminRepositoryImpl implements IAdminRepository {
   final FirebaseFirestore _firestore;
+  final ISystemConfigDataSource _configDataSource;
 
-  AdminRepositoryImpl(this._firestore);
+  AdminRepositoryImpl(this._firestore, this._configDataSource);
+
+  @override
+  Future<Either<Failure, SystemConfigEntity>> getSystemConfig() async {
+    try {
+      final config = await _configDataSource.getConfig();
+      return Right(config);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> updateSystemConfig(SystemConfigEntity config) async {
+    try {
+      // Cast to Model to access toJson
+      final model = config is SystemConfigModel 
+          ? config 
+          : SystemConfigModel(
+              pricing: PricingConfigModel(
+                baseFare: config.pricing.baseFare,
+                pricePerKm: config.pricing.pricePerKm,
+                minFare: config.pricing.minFare,
+                cancellationFeeWindowHours: config.pricing.cancellationFeeWindowHours,
+                cancellationFeeAmount: config.pricing.cancellationFeeAmount,
+                driverCommissionRate: config.pricing.driverCommissionRate,
+              ),
+              subscription: SubscriptionConfigModel(
+                monthlyPlanPrice: config.subscription.monthlyPlanPrice,
+                monthlyRideLimit: config.subscription.monthlyRideLimit,
+                rideDistanceLimitKm: config.subscription.rideDistanceLimitKm,
+                extraRidePrice: config.subscription.extraRidePrice,
+              ),
+              loyalty: LoyaltyConfigModel(
+                pointsPerRide: config.loyalty.pointsPerRide,
+                pointsFemaleDriver: config.loyalty.pointsFemaleDriver,
+                pointsMonthlySub: config.loyalty.pointsMonthlySub,
+                pointsLongTermSub: config.loyalty.pointsLongTermSub,
+                pointsSafetyReport: config.loyalty.pointsSafetyReport,
+                levelThresholds: config.loyalty.levelThresholds,
+              ),
+              safety: SafetyConfigModel(
+                maxRewardedReportsPerMonth: config.safety.maxRewardedReportsPerMonth,
+                autoSuspendReportCount: config.safety.autoSuspendReportCount,
+              ),
+            );
+            
+      await _configDataSource.updateConfig(model);
+      return const Right(unit);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 
   @override
   Future<Either<Failure, AdminDashboardEntity>> getDashboardStats() async {

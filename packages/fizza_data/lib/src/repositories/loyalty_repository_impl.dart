@@ -3,12 +3,14 @@ import 'package:dartz/dartz.dart';
 import 'package:fizza_core/fizza_core.dart';
 import 'package:fizza_domain/fizza_domain.dart';
 import 'package:injectable/injectable.dart';
+import '../datasources/system_config_datasource.dart';
 
 @LazySingleton(as: ILoyaltyRepository)
 class LoyaltyRepositoryImpl implements ILoyaltyRepository {
   final FirebaseFirestore _firestore;
+  final ISystemConfigDataSource _configDataSource;
 
-  LoyaltyRepositoryImpl(this._firestore);
+  LoyaltyRepositoryImpl(this._firestore, this._configDataSource);
 
   @override
   Future<Either<Failure, Unit>> earnPoints({
@@ -18,12 +20,40 @@ class LoyaltyRepositoryImpl implements ILoyaltyRepository {
     String? referenceId,
   }) async {
     try {
+      // Fetch config to get point values if amount is not passed or to validate
+      final config = await _configDataSource.getConfig();
+      int pointsToAward = amount;
+      
+      // Override amount based on type if needed, or use passed amount.
+      // The design says "LoyaltyRepositoryImpl: Make earnPoints read point values from SystemConfig".
+      // So we should probably ignore 'amount' param or use it as override.
+      // Let's use config values as defaults.
+      switch (type) {
+        case LoyaltyEventType.rideCompleted:
+          pointsToAward = config.loyalty.pointsPerRide;
+          break;
+        case LoyaltyEventType.rideWithFemaleDriver:
+          pointsToAward = config.loyalty.pointsFemaleDriver;
+          break;
+        case LoyaltyEventType.newSubscription:
+          pointsToAward = config.loyalty.pointsMonthlySub;
+          break;
+        case LoyaltyEventType.longTermSubscription:
+          pointsToAward = config.loyalty.pointsLongTermSub;
+          break;
+        case LoyaltyEventType.safetyReportValid:
+          pointsToAward = config.loyalty.pointsSafetyReport;
+          break;
+        default:
+          break;
+      }
+
       await _firestore.runTransaction((transaction) async {
         // 1. Add point transaction
         final pointRef = _firestore.collection('loyalty_points').doc();
         transaction.set(pointRef, {
           'userId': userId,
-          'amount': amount,
+          'amount': pointsToAward,
           'type': type.toString().split('.').last,
           'referenceId': referenceId,
           'timestamp': FieldValue.serverTimestamp(),
@@ -36,13 +66,14 @@ class LoyaltyRepositoryImpl implements ILoyaltyRepository {
         if (!userDoc.exists) throw Exception('User not found');
         
         final currentPoints = (userDoc.data()?['loyaltyPoints'] as num?)?.toInt() ?? 0;
-        final newPoints = currentPoints + amount;
+        final newPoints = currentPoints + pointsToAward;
         
-        // Simple level logic: Level 1 (0-500), Level 2 (501-2000), Level 3 (2001+)
+        // Level logic using config thresholds
         int newLevel = 1;
-        if (newPoints > 2000) {
+        final thresholds = config.loyalty.levelThresholds;
+        if (newPoints > (thresholds['level_2'] ?? 2000)) {
           newLevel = 3;
-        } else if (newPoints > 500) {
+        } else if (newPoints > (thresholds['level_1'] ?? 500)) {
           newLevel = 2;
         }
 

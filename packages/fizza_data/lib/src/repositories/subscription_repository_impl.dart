@@ -3,12 +3,14 @@ import 'package:dartz/dartz.dart';
 import 'package:fizza_core/fizza_core.dart';
 import 'package:fizza_domain/fizza_domain.dart';
 import 'package:injectable/injectable.dart';
+import '../datasources/system_config_datasource.dart';
 
 @LazySingleton(as: ISubscriptionRepository)
 class SubscriptionRepositoryImpl implements ISubscriptionRepository {
   final FirebaseFirestore _firestore;
+  final ISystemConfigDataSource _configDataSource;
 
-  SubscriptionRepositoryImpl(this._firestore);
+  SubscriptionRepositoryImpl(this._firestore, this._configDataSource);
 
   @override
   Future<Either<Failure, List<SubscriptionPackageEntity>>> getAvailablePackages() async {
@@ -19,12 +21,13 @@ class SubscriptionRepositoryImpl implements ISubscriptionRepository {
         return SubscriptionPackageEntity(
           id: doc.id,
           name: data['name'],
-          description: data['description'],
           price: (data['price'] as num).toDouble(),
-          ridesIncluded: data['ridesIncluded'],
           durationDays: data['durationDays'],
-          isFamilyPackage: data['isFamilyPackage'] ?? false,
-          maxFamilyMembers: data['maxFamilyMembers'] ?? 0,
+          features: List<String>.from(data['features'] ?? []),
+          rideLimit: data['rideLimit'] ?? 20,
+          distanceLimitKm: (data['distanceLimitKm'] as num?)?.toDouble() ?? 7.0,
+          extraRidePrice: (data['extraRidePrice'] as num?)?.toDouble() ?? 8.0,
+          isTrial: data['isTrial'] ?? false,
         );
       }).toList();
       return Right(packages);
@@ -56,10 +59,40 @@ class SubscriptionRepositoryImpl implements ISubscriptionRepository {
         packageId: data['packageId'],
         startDate: (data['startDate'] as Timestamp).toDate(),
         endDate: (data['endDate'] as Timestamp).toDate(),
-        ridesRemaining: data['ridesRemaining'],
         isActive: data['isActive'],
         autoRenew: data['autoRenew'],
+        ridesUsed: data['ridesUsed'] ?? 0,
+        extraRidesCharged: data['extraRidesCharged'] ?? 0,
       ));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> checkSubscriptionStatus(String userId) async {
+    try {
+      final subResult = await getCurrentSubscription(userId);
+      return subResult.fold(
+        (failure) => Left(failure),
+        (subscription) async {
+          if (subscription == null) return const Right(false);
+          
+          // Get package limits (could be stored in subscription or fetched)
+          // For MVP, we can fetch config or package. 
+          // Assuming we fetch config for global rules or package for specific rules.
+          // Let's use config for MVP simplicity as per rules.
+          final config = await _configDataSource.getConfig();
+          final limit = config.subscription.monthlyRideLimit;
+          
+          if (subscription.ridesUsed < limit) {
+            return const Right(true);
+          } else {
+            // Allow overage but it implies extra charge logic will handle it
+            return const Right(true); 
+          }
+        },
+      );
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

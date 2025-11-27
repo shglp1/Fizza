@@ -49,10 +49,10 @@ class MapsPlacesLoaded extends MapsState {
   List<Object> get props => [places];
 }
 class MapsRouteLoaded extends MapsState {
-  final RouteEntity route;
-  const MapsRouteLoaded(this.route);
+  final List<RouteEntity> routes;
+  const MapsRouteLoaded(this.routes);
   @override
-  List<Object> get props => [route];
+  List<Object> get props => [routes];
 }
 class MapsError extends MapsState {
   final String message;
@@ -95,7 +95,7 @@ class MapsBloc extends Bloc<MapsEvent, MapsState> {
     final result = await _repository.getRoute(event.origin, event.destination);
     result.fold(
       (failure) => emit(MapsError(failure.message)),
-      (route) => emit(MapsRouteLoaded(route)),
+      (routes) => emit(MapsRouteLoaded(routes)),
     );
   }
 }

@@ -3,24 +3,26 @@ import 'package:equatable/equatable.dart';
 class SubscriptionPackageEntity extends Equatable {
   final String id;
   final String name;
-  final String description;
   final double price;
-  final int ridesIncluded;
   final int durationDays;
-  final bool isFamilyPackage;
-  final int maxFamilyMembers;
+  final List<String> features;
+  final int rideLimit;
+  final double distanceLimitKm;
+  final double extraRidePrice;
+  final bool isTrial;
 
   const SubscriptionPackageEntity({
     required this.id,
     required this.name,
-    required this.description,
     required this.price,
-    required this.ridesIncluded,
     required this.durationDays,
-    this.isFamilyPackage = false,
-    this.maxFamilyMembers = 0,
+    required this.features,
+    required this.rideLimit,
+    required this.distanceLimitKm,
+    required this.extraRidePrice,
+    this.isTrial = false,
   });
 
   @override
-  List<Object> get props => [id, name, description, price, ridesIncluded, durationDays, isFamilyPackage, maxFamilyMembers];
+  List<Object> get props => [id, name, price, durationDays, features, rideLimit, distanceLimitKm, extraRidePrice, isTrial];
 }

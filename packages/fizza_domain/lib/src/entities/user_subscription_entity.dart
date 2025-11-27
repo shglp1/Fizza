@@ -6,9 +6,10 @@ class UserSubscriptionEntity extends Equatable {
   final String packageId;
   final DateTime startDate;
   final DateTime endDate;
-  final int ridesRemaining;
   final bool isActive;
   final bool autoRenew;
+  final int ridesUsed;
+  final int extraRidesCharged;
 
   const UserSubscriptionEntity({
     required this.id,
@@ -16,11 +17,12 @@ class UserSubscriptionEntity extends Equatable {
     required this.packageId,
     required this.startDate,
     required this.endDate,
-    required this.ridesRemaining,
     required this.isActive,
     required this.autoRenew,
+    this.ridesUsed = 0,
+    this.extraRidesCharged = 0,
   });
 
   @override
-  List<Object> get props => [id, userId, packageId, startDate, endDate, ridesRemaining, isActive, autoRenew];
+  List<Object> get props => [id, userId, packageId, startDate, endDate, isActive, autoRenew, ridesUsed, extraRidesCharged];
 }

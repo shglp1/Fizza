@@ -20,6 +20,15 @@ class LoadFinancialReport extends AdminDashboardEvent {
   List<Object> get props => [startDate, endDate];
 }
 
+class LoadSystemConfig extends AdminDashboardEvent {}
+
+class UpdateSystemConfig extends AdminDashboardEvent {
+  final SystemConfigEntity config;
+  const UpdateSystemConfig(this.config);
+  @override
+  List<Object> get props => [config];
+}
+
 // States
 abstract class AdminDashboardState extends Equatable {
   const AdminDashboardState();
@@ -41,6 +50,14 @@ class AdminFinancialReportLoaded extends AdminDashboardState {
   @override
   List<Object> get props => [report];
 }
+class AdminSystemConfigLoaded extends AdminDashboardState {
+  final SystemConfigEntity config;
+  const AdminSystemConfigLoaded(this.config);
+  @override
+  List<Object> get props => [config];
+}
+class AdminSystemConfigUpdated extends AdminDashboardState {}
+
 class AdminDashboardError extends AdminDashboardState {
   final String message;
   const AdminDashboardError(this.message);
@@ -56,6 +73,8 @@ class AdminDashboardBloc extends Bloc<AdminDashboardEvent, AdminDashboardState> 
   AdminDashboardBloc(this._repository) : super(AdminDashboardInitial()) {
     on<LoadDashboardStats>(_onLoadStats);
     on<LoadFinancialReport>(_onLoadFinancials);
+    on<LoadSystemConfig>(_onLoadSystemConfig);
+    on<UpdateSystemConfig>(_onUpdateSystemConfig);
   }
 
   Future<void> _onLoadStats(LoadDashboardStats event, Emitter<AdminDashboardState> emit) async {
@@ -73,6 +92,27 @@ class AdminDashboardBloc extends Bloc<AdminDashboardEvent, AdminDashboardState> 
     result.fold(
       (failure) => emit(AdminDashboardError(failure.message)),
       (report) => emit(AdminFinancialReportLoaded(report)),
+    );
+  }
+
+  Future<void> _onLoadSystemConfig(LoadSystemConfig event, Emitter<AdminDashboardState> emit) async {
+    emit(AdminDashboardLoading());
+    final result = await _repository.getSystemConfig();
+    result.fold(
+      (failure) => emit(AdminDashboardError(failure.message)),
+      (config) => emit(AdminSystemConfigLoaded(config)),
+    );
+  }
+
+  Future<void> _onUpdateSystemConfig(UpdateSystemConfig event, Emitter<AdminDashboardState> emit) async {
+    emit(AdminDashboardLoading());
+    final result = await _repository.updateSystemConfig(event.config);
+    result.fold(
+      (failure) => emit(AdminDashboardError(failure.message)),
+      (_) {
+        emit(AdminSystemConfigUpdated());
+        add(LoadSystemConfig()); // Reload config
+      },
     );
   }
 }

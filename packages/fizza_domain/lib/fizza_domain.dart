@@ -29,3 +29,4 @@ export 'src/repositories/i_loyalty_repository.dart';
 export 'src/entities/admin_dashboard_entity.dart';
 export 'src/entities/admin_user_entity.dart';
 export 'src/repositories/i_admin_repository.dart';
+export 'src/entities/system_config_entity.dart';

@@ -75,6 +75,11 @@ class WalletBloc extends Bloc<WalletEvent, WalletState> {
   }
 
   Future<void> _onTopUpWallet(TopUpWallet event, Emitter<WalletState> emit) async {
+    if (event.amount < 20 || event.amount > 500) {
+      emit(const WalletError('Top-up amount must be between 20 SAR and 500 SAR'));
+      return;
+    }
+
     emit(WalletLoading());
     final result = await _repository.topUpWallet(event.walletId, event.amount);
     result.fold(

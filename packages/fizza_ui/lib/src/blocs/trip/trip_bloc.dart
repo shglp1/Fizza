@@ -32,6 +32,13 @@ class CancelTrip extends TripEvent {
   List<Object> get props => [tripId, userId];
 }
 
+class CalculateFare extends TripEvent {
+  final double distanceKm;
+  const CalculateFare(this.distanceKm);
+  @override
+  List<Object> get props => [distanceKm];
+}
+
 // States
 abstract class TripState extends Equatable {
   const TripState();
@@ -46,6 +53,12 @@ class TripHistoryLoaded extends TripState {
   const TripHistoryLoaded(this.trips);
   @override
   List<Object> get props => [trips];
+}
+class TripFareCalculated extends TripState {
+  final double fare;
+  const TripFareCalculated(this.fare);
+  @override
+  List<Object> get props => [fare];
 }
 class TripOperationSuccess extends TripState {} // For scheduling/cancelling
 class TripError extends TripState {
@@ -64,6 +77,7 @@ class TripBloc extends Bloc<TripEvent, TripState> {
     on<LoadTripHistory>(_onLoadTripHistory);
     on<ScheduleTrip>(_onScheduleTrip);
     on<CancelTrip>(_onCancelTrip);
+    on<CalculateFare>(_onCalculateFare);
   }
 
   Future<void> _onLoadTripHistory(LoadTripHistory event, Emitter<TripState> emit) async {
@@ -96,6 +110,15 @@ class TripBloc extends Bloc<TripEvent, TripState> {
         emit(TripOperationSuccess());
         add(LoadTripHistory(event.userId));
       },
+    );
+  }
+
+  Future<void> _onCalculateFare(CalculateFare event, Emitter<TripState> emit) async {
+    emit(TripLoading());
+    final result = await _repository.calculateFare(event.distanceKm);
+    result.fold(
+      (failure) => emit(TripError(failure.message)),
+      (fare) => emit(TripFareCalculated(fare)),
     );
   }
 }

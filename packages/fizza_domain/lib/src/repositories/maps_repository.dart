@@ -6,7 +6,7 @@ import '../entities/route_entity.dart';
 abstract class IMapsRepository {
   Future<Either<Failure, LocationEntity>> getCurrentLocation();
   Future<Either<Failure, List<LocationEntity>>> searchPlaces(String query);
-  Future<Either<Failure, RouteEntity>> getRoute(LocationEntity origin, LocationEntity destination);
+  Future<Either<Failure, List<RouteEntity>>> getRoute(LocationEntity origin, LocationEntity destination);
   Future<Either<Failure, String>> getAddressFromCoordinates(double lat, double lng);
 }
 
