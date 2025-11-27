@@ -43,15 +43,17 @@ class MapsRepositoryImpl implements IMapsRepository {
   }
 
   @override
-  Future<Either<Failure, RouteEntity>> getRoute(LocationEntity origin, LocationEntity destination) async {
+  Future<Either<Failure, List<RouteEntity>>> getRoute(LocationEntity origin, LocationEntity destination) async {
     try {
       // Mock route
-      return Right(RouteEntity(
-        points: [origin, destination], // Simplified straight line
-        distanceMeters: 5000,
-        durationSeconds: 600,
-        encodedPolyline: 'mock_polyline_string',
-      ));
+      return Right([
+        RouteEntity(
+          points: [origin, destination],
+          distanceMeters: 5000.0,
+          durationSeconds: 600.0,
+          encodedPolyline: 'mock_polyline',
+        )
+      ]);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

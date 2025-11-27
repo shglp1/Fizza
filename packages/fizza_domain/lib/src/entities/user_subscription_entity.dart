@@ -10,6 +10,7 @@ class UserSubscriptionEntity extends Equatable {
   final bool autoRenew;
   final int ridesUsed;
   final int extraRidesCharged;
+  final int ridesRemaining; // Calculated or stored
 
   const UserSubscriptionEntity({
     required this.id,
@@ -21,8 +22,20 @@ class UserSubscriptionEntity extends Equatable {
     required this.autoRenew,
     this.ridesUsed = 0,
     this.extraRidesCharged = 0,
+    this.ridesRemaining = 0,
   });
 
   @override
-  List<Object> get props => [id, userId, packageId, startDate, endDate, isActive, autoRenew, ridesUsed, extraRidesCharged];
+  List<Object> get props => [
+        id,
+        userId,
+        packageId,
+        startDate,
+        endDate,
+        isActive,
+        autoRenew,
+        ridesUsed,
+        extraRidesCharged,
+        ridesRemaining,
+      ];
 }

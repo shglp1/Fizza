@@ -15,6 +15,11 @@ dependencies:
   cloud_firestore: ^6.1.0
   json_annotation: ^4.9.0
   injectable: ^2.7.0
+  dartz: ^0.10.1
+  fizza_core:
+    path: ../fizza_core
+  fizza_domain:
+    path: ../fizza_domain
 
 dev_dependencies:
   flutter_test:

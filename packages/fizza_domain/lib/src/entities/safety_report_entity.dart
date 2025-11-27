@@ -28,5 +28,17 @@ class SafetyReportEntity extends Equatable {
   });
 
   @override
-  List<Object> get props => [id, reporterId, reportedId, tripId, category, description, evidencePaths, timestamp, status, isValid, rewardPointsGranted];
+  List<Object> get props => [
+        id,
+        reporterId,
+        reportedId,
+        tripId,
+        category,
+        description,
+        evidencePaths,
+        timestamp,
+        status,
+        isValid,
+        rewardPointsGranted,
+      ];
 }

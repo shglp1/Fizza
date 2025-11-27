@@ -1,7 +1,9 @@
 import 'package:equatable/equatable.dart';
+import 'location_entity.dart';
 
 class DriverEntity extends Equatable {
   final String id;
+  final String userId;
   final String name;
   final String phoneNumber;
   final String vehicleModel;
@@ -12,11 +14,14 @@ class DriverEntity extends Equatable {
   final double commissionRate;
   final double rating;
   final int ratingCount;
+  final int totalRides;
   final bool isSuspended;
   final String? suspensionReason;
+  final LocationEntity? currentLocation;
 
   const DriverEntity({
     required this.id,
+    required this.userId,
     required this.name,
     required this.phoneNumber,
     required this.vehicleModel,
@@ -27,13 +32,16 @@ class DriverEntity extends Equatable {
     this.commissionRate = 0.12,
     this.rating = 5.0,
     this.ratingCount = 0,
+    this.totalRides = 0,
     this.isSuspended = false,
     this.suspensionReason,
+    this.currentLocation,
   });
 
   @override
   List<Object?> get props => [
         id,
+        userId,
         name,
         phoneNumber,
         vehicleModel,
@@ -44,7 +52,9 @@ class DriverEntity extends Equatable {
         commissionRate,
         rating,
         ratingCount,
+        totalRides,
         isSuspended,
         suspensionReason,
+        currentLocation,
       ];
 }

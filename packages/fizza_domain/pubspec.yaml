@@ -13,6 +13,8 @@ dependencies:
   equatable: ^2.0.7
   json_annotation: ^4.9.0
   dartz: ^0.10.1
+  fizza_core:
+    path: ../fizza_core
 
 dev_dependencies:
   flutter_test:

@@ -19,12 +19,19 @@ class DriverRepositoryImpl implements IDriverRepository {
         return Right(DriverEntity(
           id: doc.id,
           userId: userId,
+          name: data['name'] ?? 'Unknown',
+          phoneNumber: data['phoneNumber'] ?? '',
+          vehicleModel: data['vehicleModel'] ?? 'Unknown',
+          vehiclePlate: data['vehiclePlateNumber'] ?? 'Unknown',
+          vehicleYear: data['vehicleYear'] ?? 2020,
           isOnline: data['isOnline'] ?? false,
           isAvailable: data['isAvailable'] ?? false,
-          vehicleType: data['vehicleType'] ?? 'Unknown',
-          vehiclePlateNumber: data['vehiclePlateNumber'] ?? 'Unknown',
+          commissionRate: (data['commissionRate'] as num?)?.toDouble() ?? 0.12,
           rating: (data['rating'] as num?)?.toDouble() ?? 5.0,
+          ratingCount: data['ratingCount'] ?? 0,
           totalRides: data['totalRides'] ?? 0,
+          isSuspended: data['isSuspended'] ?? false,
+          suspensionReason: data['suspensionReason'],
           currentLocation: data['location'] != null 
               ? LocationEntity(
                   latitude: data['location']['lat'],
@@ -95,9 +102,10 @@ class DriverRepositoryImpl implements IDriverRepository {
               address: data['dropoff']['address'],
             ),
             estimatedFare: (data['estimatedFare'] as num).toDouble(),
-            estimatedDistance: (data['estimatedDistance'] as num).toDouble(),
+            distanceKm: (data['estimatedDistance'] as num).toDouble(),
             estimatedDuration: (data['estimatedDuration'] as num).toDouble(),
             timestamp: (data['timestamp'] as Timestamp).toDate(),
+            status: data['status'],
           );
         }).toList();
         return Right(requests);
