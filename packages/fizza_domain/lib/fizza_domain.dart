@@ -1,0 +1,19 @@
+library fizza_domain;
+
+export 'src/entities/user_entity.dart';
+export 'src/failures/auth_failures.dart';
+export 'src/repositories/i_auth_repository.dart';
+export 'src/entities/family_member_entity.dart';
+export 'src/entities/wallet_entity.dart';
+export 'src/entities/trip_entity.dart';
+export 'src/repositories/feature_repositories.dart';
+export 'src/entities/subscription_package_entity.dart';
+export 'src/entities/user_subscription_entity.dart';
+export 'src/repositories/i_subscription_repository.dart';
+export 'src/entities/location_entity.dart';
+export 'src/entities/route_entity.dart';
+export 'src/repositories/maps_repository.dart';
+export 'src/entities/driver_entity.dart';
+export 'src/entities/ride_request_entity.dart';
+export 'src/entities/earnings_entity.dart';
+export 'src/repositories/i_driver_repository.dart';
