@@ -10,3 +10,6 @@ export 'src/repositories/subscription_repository_impl.dart';
 export 'src/repositories/maps_repository_impl.dart';
 export 'src/repositories/tracking_repository_impl.dart';
 export 'src/repositories/driver_repository_impl.dart';
+export 'src/repositories/safety_repository_impl.dart';
+export 'src/repositories/loyalty_repository_impl.dart';
+export 'src/repositories/admin_repository_impl.dart';
