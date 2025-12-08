@@ -39,3 +39,5 @@ This repository contains the source code for the FIZZA platform, including the U
 ## Architecture
 
 The project follows Clean Architecture principles with a modular package structure.
+# Trigger workflow
+
