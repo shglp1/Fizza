@@ -88,3 +88,7 @@ build/
 dist/
 out/
 .DS_Store
+
+.env
+supabase/.env
+supabase/.temp/

@@ -1,0 +1,19 @@
+name: Run Daily Stats Function
+
+on:
+  schedule:
+    # Runs every day at 2 AM Riyadh time (23:00 UTC)
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+
+jobs:
+  run-stats:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Supabase Edge Function
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_CRON_SECRET }}" \
+            ${{ secrets.SUPABASE_FUNCTION_URL }}
