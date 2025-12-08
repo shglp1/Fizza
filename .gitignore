@@ -71,3 +71,20 @@ supabase/functions/.netlify/
 # Local Cache
 # ============================
 .cache/
+
+# Node
+node_modules/
+functions/node_modules/
+
+# Supabase local files
+supabase/.env
+supabase/.temp/
+
+# Flutter / Dart
+.dart_tool/
+build/
+
+# Misc
+dist/
+out/
+.DS_Store
