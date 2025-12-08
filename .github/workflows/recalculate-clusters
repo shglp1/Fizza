@@ -1,0 +1,19 @@
+name: Run Cluster Recalculation
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  
+    # 02:00 UTC = 05:00 KSA time daily
+  workflow_dispatch:
+
+jobs:
+  call-cluster-function:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call recalculate-clusters function
+        run: |
+          curl -X POST \
+            "${{ secrets.SUPABASE_CLUSTER_URL }}" \
+            -H "x-cron-secret: ${{ secrets.SUPABASE_CRON_SECRET }}" \
+            -H "Content-Type: application/json"
