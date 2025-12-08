@@ -1,0 +1,23 @@
+name: Fizza - Daily Supabase Stats
+
+on:
+  schedule:
+    # GitHub يعمل بـ UTC
+    # 2 صباحًا الرياض (UTC+3) = 23:00 اليوم السابق UTC
+    - cron: '0 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger-supabase-function:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Supabase aggregate-daily-stats
+        run: |
+          curl -X POST "$SUPABASE_FUNCTION_URL" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -d '{}'
+        env:
+          SUPABASE_FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          CRON_SECRET: ${{ secrets.SUPABASE_CRON_SECRET }}
