@@ -26,7 +26,7 @@ class AdminRepositoryImpl implements IAdminRepository {
   @override
   Future<Either<Failure, Unit>> updateSystemConfig(SystemConfigEntity config) async {
     try {
-      // Cast to Model to access toJson
+      // Cast to Model to access toJson or reconstruct
       final model = config is SystemConfigModel 
           ? config 
           : SystemConfigModel(
@@ -37,6 +37,13 @@ class AdminRepositoryImpl implements IAdminRepository {
                 cancellationFeeWindowHours: config.pricing.cancellationFeeWindowHours,
                 cancellationFeeAmount: config.pricing.cancellationFeeAmount,
                 driverCommissionRate: config.pricing.driverCommissionRate,
+                salaryPerDriver: config.pricing.salaryPerDriver,
+                fuelPrice: config.pricing.fuelPrice,
+                maintenancePerMonth: config.pricing.maintenancePerMonth,
+                depreciationPerMonth: config.pricing.depreciationPerMonth,
+                insurancePerMonth: config.pricing.insurancePerMonth,
+                overheadPerUser: config.pricing.overheadPerUser,
+                marginPercentage: config.pricing.marginPercentage,
               ),
               subscription: SubscriptionConfigModel(
                 monthlyPlanPrice: config.subscription.monthlyPlanPrice,
@@ -56,6 +63,11 @@ class AdminRepositoryImpl implements IAdminRepository {
                 maxRewardedReportsPerMonth: config.safety.maxRewardedReportsPerMonth,
                 autoSuspendReportCount: config.safety.autoSuspendReportCount,
               ),
+              operational: OperationalConfigModel(
+                operatingStartHour: config.operational.operatingStartHour,
+                operatingEndHour: config.operational.operatingEndHour,
+                maxPickupDistanceKm: config.operational.maxPickupDistanceKm,
+              ),
             );
             
       await _configDataSource.updateConfig(model);
@@ -68,111 +80,35 @@ class AdminRepositoryImpl implements IAdminRepository {
   @override
   Future<Either<Failure, AdminDashboardEntity>> getDashboardStats() async {
     try {
-      // In a real app, these would likely be aggregated by a Cloud Function 
-      // and stored in a single 'stats' document to avoid reading thousands of docs.
-      // Mocking aggregation for now or reading from a stats doc.
-      
-      // Simulating fetching from a stats document
-      // final statsDoc = await _firestore.collection('admin_stats').doc('daily_overview').get();
-      
-      return const Right(AdminDashboardEntity(
-        totalUsers: 1250,
-        activeDrivers: 45,
-        pendingDriverApprovals: 8,
-        activeTrips: 12,
-        totalRevenue: 15400.0,
-        todayRevenue: 850.0,
-        pendingComplaints: 3,
-        activeSubscriptions: 320,
+      // 1. Get Counts (Using Firestore Count Aggregation)
+      final usersCount = await _firestore.collection('users').count().get();
+      final activeDriversCount = await _firestore.collection('drivers').where('isAvailable', isEqualTo: true).count().get();
+      final pendingDriversCount = await _firestore.collection('drivers').where('isVerified', isEqualTo: false).count().get();
+      final activeTripsCount = await _firestore.collection('trips').where('status', isEqualTo: 'started').count().get();
+      final pendingComplaintsCount = await _firestore.collection('safety_reports').where('status', isEqualTo: 'pending').count().get();
+      final activeSubsCount = await _firestore.collection('user_subscriptions').where('isActive', isEqualTo: true).count().get();
+
+      // 2. Get Today's Stats
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final dailyStatsDoc = await _firestore.collection('stats_daily').doc(today).get();
+      final todayRevenue = (dailyStatsDoc.data()?['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+      final worstDriverId = dailyStatsDoc.data()?['worstDriverId'] as String?;
+
+      // 3. Get Total Revenue
+      final globalStatsDoc = await _firestore.collection('stats_global').doc('summary').get();
+      final totalRevenue = (globalStatsDoc.data()?['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+
+      return Right(AdminDashboardEntity(
+        totalUsers: usersCount.count ?? 0,
+        activeDrivers: activeDriversCount.count ?? 0,
+        pendingDriverApprovals: pendingDriversCount.count ?? 0,
+        activeTrips: activeTripsCount.count ?? 0,
+        totalRevenue: totalRevenue,
+        todayRevenue: todayRevenue,
+        pendingComplaints: pendingComplaintsCount.count ?? 0,
+        activeSubscriptions: activeSubsCount.count ?? 0,
+        worstDriverId: worstDriverId,
       ));
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, List<DriverEntity>>> getPendingDrivers() async {
-    try {
-      final snapshot = await _firestore
-          .collection('drivers')
-          .where('isVerified', isEqualTo: false) // Assuming isVerified flag exists or using status
-          .get();
-
-      // Mapping logic would go here. 
-      // Since DriverEntity in domain doesn't strictly have 'isVerified' in constructor shown previously,
-      // we assume 'isAvailable' or similar, or just mapping basic fields for the list.
-      // For this implementation, I'll return an empty list or mock data if schema doesn't match perfectly yet.
-      
-      return const Right([]); 
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, Unit>> approveDriver(String driverId) async {
-    try {
-      await _firestore.collection('drivers').doc(driverId).update({
-        'isVerified': true,
-        'isAvailable': true,
-      });
-      return const Right(unit);
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, Unit>> rejectDriver(String driverId, String reason) async {
-    try {
-      await _firestore.collection('drivers').doc(driverId).update({
-        'isVerified': false,
-        'rejectionReason': reason,
-      });
-      return const Right(unit);
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, List<SafetyReportEntity>>> getPendingComplaints() async {
-    try {
-      final snapshot = await _firestore
-          .collection('safety_reports')
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      final reports = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return SafetyReportEntity(
-          id: doc.id,
-          reporterId: data['reporterId'],
-          reportedId: data['reportedId'] ?? '',
-          tripId: data['tripId'],
-          category: data['category'],
-          description: data['description'],
-          evidencePaths: List<String>.from(data['evidencePaths'] ?? []),
-          timestamp: (data['timestamp'] as Timestamp).toDate(),
-          status: data['status'],
-        );
-      }).toList();
-
-      return Right(reports);
-    } catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
-  Future<Either<Failure, Unit>> resolveComplaint(String reportId, String resolutionNotes) async {
-    try {
-      await _firestore.collection('safety_reports').doc(reportId).update({
-        'status': 'resolved',
-        'resolutionNotes': resolutionNotes,
-        'resolvedAt': FieldValue.serverTimestamp(),
-      });
-      return const Right(unit);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
@@ -181,13 +117,41 @@ class AdminRepositoryImpl implements IAdminRepository {
   @override
   Future<Either<Failure, Map<String, dynamic>>> getFinancialReport({required DateTime startDate, required DateTime endDate}) async {
     try {
-      // Mock financial data
+      final startStr = startDate.toIso8601String().split('T')[0];
+      final endStr = endDate.toIso8601String().split('T')[0];
+
+      final snapshot = await _firestore.collection('stats_daily')
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: startStr)
+          .where(FieldPath.documentId, isLessThanOrEqualTo: endStr)
+          .get();
+
+      double totalRevenue = 0;
+      double totalTrips = 0;
+      double totalDelay = 0;
+      int complaintsCount = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        totalRevenue += (data['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+        totalTrips += (data['totalTrips'] as num?)?.toInt() ?? 0;
+        totalDelay += (data['totalDelay'] as num?)?.toDouble() ?? 0.0;
+        complaintsCount += (data['complaintsCount'] as num?)?.toInt() ?? 0;
+      }
+
+      // Estimate costs/payouts based on config
+      final config = await _configDataSource.getConfig();
+      final driverShare = totalRevenue * (1 - config.pricing.driverCommissionRate);
+      final netProfit = totalRevenue - driverShare;
+
       return Right({
-        'totalRevenue': 50000.0,
-        'subscriptionRevenue': 20000.0,
-        'tripRevenue': 30000.0,
-        'driverPayouts': 25000.0,
-        'netProfit': 25000.0,
+        'totalRevenue': totalRevenue,
+        'subscriptionRevenue': totalRevenue,
+        'tripRevenue': 0.0,
+        'driverPayouts': driverShare,
+        'netProfit': netProfit,
+        'totalTrips': totalTrips,
+        'avgDelay': totalTrips > 0 ? totalDelay / totalTrips : 0,
+        'complaintsCount': complaintsCount,
       });
     } catch (e) {
       return Left(ServerFailure(e.toString()));

@@ -9,6 +9,7 @@ class AdminDashboardEntity extends Equatable {
   final double todayRevenue;
   final int pendingComplaints;
   final int activeSubscriptions;
+  final String? worstDriverId;
 
   const AdminDashboardEntity({
     required this.totalUsers,
@@ -19,10 +20,11 @@ class AdminDashboardEntity extends Equatable {
     required this.todayRevenue,
     required this.pendingComplaints,
     required this.activeSubscriptions,
+    this.worstDriverId,
   });
 
   @override
-  List<Object> get props => [
+  List<Object?> get props => [
         totalUsers,
         activeDrivers,
         pendingDriverApprovals,
@@ -31,5 +33,6 @@ class AdminDashboardEntity extends Equatable {
         todayRevenue,
         pendingComplaints,
         activeSubscriptions,
+        worstDriverId,
       ];
 }

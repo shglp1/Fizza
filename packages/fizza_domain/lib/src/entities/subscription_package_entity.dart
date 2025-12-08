@@ -12,6 +12,7 @@ class SubscriptionPackageEntity extends Equatable {
   final double extraRidePrice;
   final bool isTrial;
   final bool isFamilyPackage;
+  final bool isFemaleOnly;
   final int maxFamilyMembers;
 
   const SubscriptionPackageEntity({
@@ -26,8 +27,14 @@ class SubscriptionPackageEntity extends Equatable {
     required this.extraRidePrice,
     this.isTrial = false,
     this.isFamilyPackage = false,
+    this.isFemaleOnly = false,
     this.maxFamilyMembers = 0,
+    this.planType = 'monthly',
+    this.discountPercentage = 0,
   });
+
+  final String planType;
+  final int discountPercentage;
 
   @override
   List<Object> get props => [
@@ -42,6 +49,9 @@ class SubscriptionPackageEntity extends Equatable {
         extraRidePrice,
         isTrial,
         isFamilyPackage,
+        isFemaleOnly,
         maxFamilyMembers,
+        planType,
+        discountPercentage,
       ];
 }

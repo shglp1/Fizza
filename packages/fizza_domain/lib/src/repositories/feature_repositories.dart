@@ -23,4 +23,6 @@ abstract class ITripRepository {
   Future<Either<Failure, Unit>> scheduleTrip(TripEntity trip);
   Future<Either<Failure, Unit>> cancelTrip(String tripId);
   Future<Either<Failure, double>> calculateFare(double distanceKm);
+  Future<Either<Failure, Unit>> startTrip(String tripId);
+  Future<Either<Failure, Unit>> completeTrip(String tripId, double distance, double duration);
 }

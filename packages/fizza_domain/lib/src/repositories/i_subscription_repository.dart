@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:fizza_core/fizza_core.dart';
 import '../entities/subscription_package_entity.dart';
 import '../entities/user_subscription_entity.dart';
+import '../entities/add_on_entity.dart';
 
 abstract class ISubscriptionRepository {
   Future<Either<Failure, List<SubscriptionPackageEntity>>> getAvailablePackages();
@@ -9,7 +10,11 @@ abstract class ISubscriptionRepository {
   Future<Either<Failure, Unit>> subscribeToPackage({
     required String userId,
     required SubscriptionPackageEntity package,
-    required String paymentMethodId, // Mock payment
+    required String paymentMethodId, // 'wallet' or gateway token
+    List<AddOnEntity> addOns = const [],
+    bool isFamily = false,
+    String? parentUserId,
+    String? beneficiaryId,
   });
   Future<Either<Failure, Unit>> cancelSubscription(String subscriptionId);
   

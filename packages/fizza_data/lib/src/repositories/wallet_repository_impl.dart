@@ -7,8 +7,9 @@ import 'package:injectable/injectable.dart';
 @LazySingleton(as: IWalletRepository)
 class WalletRepositoryImpl implements IWalletRepository {
   final FirebaseFirestore _firestore;
+  final INotificationService _notificationService;
 
-  WalletRepositoryImpl(this._firestore);
+  WalletRepositoryImpl(this._firestore, this._notificationService);
 
   @override
   Future<Either<Failure, WalletEntity>> getWallet(String userId) async {
@@ -88,6 +89,9 @@ class WalletRepositoryImpl implements IWalletRepository {
           'timestamp': FieldValue.serverTimestamp(),
         });
       });
+      
+      // Notify
+      await _notificationService.notifyWalletTopUp(walletId, amount);
       
       return const Right(unit);
     } catch (e) {

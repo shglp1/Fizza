@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:dartz/dartz.dart';
 import 'package:fizza_core/fizza_core.dart';
 import 'package:fizza_domain/fizza_domain.dart';
@@ -8,9 +9,16 @@ import '../datasources/system_config_datasource.dart';
 @LazySingleton(as: ITripRepository)
 class TripRepositoryImpl implements ITripRepository {
   final FirebaseFirestore _firestore;
+  final FirebaseFunctions _functions;
   final ISystemConfigDataSource _configDataSource;
+  final INotificationService _notificationService;
 
-  TripRepositoryImpl(this._firestore, this._configDataSource);
+  TripRepositoryImpl(
+    this._firestore,
+    this._functions,
+    this._configDataSource,
+    this._notificationService,
+  );
 
   @override
   Future<Either<Failure, double>> calculateFare(double distanceKm) async {
@@ -83,6 +91,54 @@ class TripRepositoryImpl implements ITripRepository {
   Future<Either<Failure, Unit>> cancelTrip(String tripId) async {
     try {
       await _firestore.collection('trips').doc(tripId).update({'status': 'cancelled'});
+      return const Right(unit);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> startTrip(String tripId) async {
+    try {
+      await _firestore.collection('trips').doc(tripId).update({
+        'status': 'in_progress',
+        'actualPickupTime': FieldValue.serverTimestamp(),
+      });
+      
+      // Notify
+      final tripDoc = await _firestore.collection('trips').doc(tripId).get();
+      final userId = tripDoc.data()?['userId'];
+      if (userId != null) {
+        await _notificationService.notifyTripStarted(userId, tripId);
+      }
+      
+      return const Right(unit);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> completeTrip(String tripId, double distance, double duration) async {
+    try {
+      final tripDoc = await _firestore.collection('trips').doc(tripId).get();
+      if (!tripDoc.exists) return const Left(ServerFailure('Trip not found'));
+      
+      final driverId = tripDoc.data()?['driverId'];
+      final userId = tripDoc.data()?['userId'];
+      
+      final callable = _functions.httpsCallable('completeDailyTrip');
+      await callable.call({
+        'tripId': tripId,
+        'driverId': driverId,
+        'actualDistance': distance,
+        'actualDuration': duration,
+      });
+      
+      if (userId != null) {
+        await _notificationService.notifyTripCompleted(userId, tripId);
+      }
+      
       return const Right(unit);
     } catch (e) {
       return Left(ServerFailure(e.toString()));

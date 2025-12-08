@@ -10,6 +10,9 @@ class SafetyReportEntity extends Equatable {
   final List<String> evidencePaths; // URLs to photos/videos
   final DateTime timestamp;
   final String status; // "pending", "resolved"
+  final String? approvedBy;
+  final DateTime? approvedAt;
+  final int pointsAwarded;
   final bool isValid;
   final bool rewardPointsGranted;
 
@@ -25,10 +28,13 @@ class SafetyReportEntity extends Equatable {
     this.status = 'pending',
     this.isValid = false,
     this.rewardPointsGranted = false,
+    this.approvedBy,
+    this.approvedAt,
+    this.pointsAwarded = 0,
   });
 
   @override
-  List<Object> get props => [
+  List<Object?> get props => [
         id,
         reporterId,
         reportedId,
@@ -40,5 +46,8 @@ class SafetyReportEntity extends Equatable {
         status,
         isValid,
         rewardPointsGranted,
+        approvedBy,
+        approvedAt,
+        pointsAwarded,
       ];
 }

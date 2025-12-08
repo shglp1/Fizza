@@ -1,6 +1,12 @@
 import 'package:equatable/equatable.dart';
 import 'location_entity.dart';
 
+enum DriverTier {
+  standard,
+  vip,
+  female,
+}
+
 class DriverEntity extends Equatable {
   final String id;
   final String userId;
@@ -18,6 +24,7 @@ class DriverEntity extends Equatable {
   final bool isSuspended;
   final String? suspensionReason;
   final LocationEntity? currentLocation;
+  final DriverTier tier;
 
   const DriverEntity({
     required this.id,
@@ -26,16 +33,17 @@ class DriverEntity extends Equatable {
     required this.phoneNumber,
     required this.vehicleModel,
     required this.vehiclePlate,
-    this.vehicleYear = 2020,
+    this.vehicleYear = 2018,
     this.isOnline = false,
     this.isAvailable = false,
-    this.commissionRate = 0.12,
+    this.commissionRate = 0.15,
     this.rating = 5.0,
     this.ratingCount = 0,
     this.totalRides = 0,
     this.isSuspended = false,
     this.suspensionReason,
     this.currentLocation,
+    this.tier = DriverTier.standard,
   });
 
   @override
@@ -56,5 +64,6 @@ class DriverEntity extends Equatable {
         isSuspended,
         suspensionReason,
         currentLocation,
+        tier,
       ];
 }

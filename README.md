@@ -1,5 +1,12 @@
 # FIZZA Monorepo
 
+## System Behavior (Business View)
+**FIZZA** is a subscription-based transportation service for school students and employees.
+*   **Core Model**: Fixed monthly subscription for daily round trips (Home ↔ Destination).
+*   **Driver Assignment**: A dedicated driver is assigned to a specific route (Cluster) for the entire subscription period. This is NOT an on-demand service like Uber.
+*   **Platform**: Three apps (User, Driver, Admin) powered by a single backend (Firebase + SystemConfig).
+*   **Documentation**: See [allinfotill28.md](allinfotill28.md) for the Source of Truth (v3).
+
 This repository contains the source code for the FIZZA platform, including the User App, Driver App, and Admin Panel.
 
 ## Structure

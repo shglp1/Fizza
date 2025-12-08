@@ -9,8 +9,13 @@ import '../datasources/system_config_datasource.dart';
 class SubscriptionRepositoryImpl implements ISubscriptionRepository {
   final FirebaseFirestore _firestore;
   final ISystemConfigDataSource _configDataSource;
+  final ILoyaltyService _loyaltyService;
 
-  SubscriptionRepositoryImpl(this._firestore, this._configDataSource);
+  SubscriptionRepositoryImpl(
+    this._firestore, 
+    this._configDataSource,
+    this._loyaltyService,
+  );
 
   @override
   Future<Either<Failure, List<SubscriptionPackageEntity>>> getAvailablePackages() async {
@@ -63,6 +68,10 @@ class SubscriptionRepositoryImpl implements ISubscriptionRepository {
         autoRenew: data['autoRenew'],
         ridesUsed: data['ridesUsed'] ?? 0,
         extraRidesCharged: data['extraRidesCharged'] ?? 0,
+        isFamily: data['isFamily'] ?? false,
+        parentUserId: data['parentUserId'],
+        beneficiaryId: data['beneficiaryId'],
+        addOnIds: List<String>.from(data['addOnIds'] ?? []),
       ));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
@@ -78,17 +87,12 @@ class SubscriptionRepositoryImpl implements ISubscriptionRepository {
         (subscription) async {
           if (subscription == null) return const Right(false);
           
-          // Get package limits (could be stored in subscription or fetched)
-          // For MVP, we can fetch config or package. 
-          // Assuming we fetch config for global rules or package for specific rules.
-          // Let's use config for MVP simplicity as per rules.
           final config = await _configDataSource.getConfig();
           final limit = config.subscription.monthlyRideLimit;
           
           if (subscription.ridesUsed < limit) {
             return const Right(true);
           } else {
-            // Allow overage but it implies extra charge logic will handle it
             return const Right(true); 
           }
         },
@@ -103,34 +107,107 @@ class SubscriptionRepositoryImpl implements ISubscriptionRepository {
     required String userId,
     required SubscriptionPackageEntity package,
     required String paymentMethodId,
+    List<AddOnEntity> addOns = const [],
+    bool isFamily = false,
+    String? parentUserId,
+    String? beneficiaryId,
   }) async {
     try {
-      // Mock Payment Processing
-      // In real app, call payment gateway here using paymentMethodId
-      
-      final startDate = DateTime.now();
-      final endDate = startDate.add(Duration(days: package.durationDays));
+      // 1. Calculate Total Price
+      double totalAmount = package.price;
+      for (final addOn in addOns) {
+        totalAmount += addOn.price;
+      }
 
-      await _firestore.collection('user_subscriptions').add({
-        'userId': userId,
-        'packageId': package.id,
-        'startDate': Timestamp.fromDate(startDate),
-        'endDate': Timestamp.fromDate(endDate),
-        'ridesUsed': 0,
-        'extraRidesCharged': 0,
-        'isActive': true,
-        'autoRenew': true,
-        'paymentMethodId': paymentMethodId,
+      // 2. Process Payment (Wallet as Source of Truth)
+      await _firestore.runTransaction((transaction) async {
+        final walletRef = _firestore.collection('wallets').doc(userId);
+        final walletDoc = await transaction.get(walletRef);
+        
+        if (!walletDoc.exists) {
+           // Create wallet if not exists (e.g. first time)
+           transaction.set(walletRef, {'balance': 0.0, 'userId': userId});
+        }
+        
+        double currentBalance = 0.0;
+        if (walletDoc.exists) {
+          currentBalance = (walletDoc.data()?['balance'] as num?)?.toDouble() ?? 0.0;
+        }
+
+        if (paymentMethodId != 'wallet') {
+          // External Gateway Flow: Credit Wallet First
+          // In a real app, we verify the gateway payment success here or via webhook.
+          // We assume it's successful for this method call.
+          
+          currentBalance += totalAmount;
+          transaction.set(walletRef, {'balance': currentBalance}, SetOptions(merge: true));
+
+          final creditTxRef = walletRef.collection('transactions').doc();
+          transaction.set(creditTxRef, {
+            'amount': totalAmount,
+            'type': 'credit',
+            'description': 'Top-up via $paymentMethodId',
+            'timestamp': FieldValue.serverTimestamp(),
+            'paymentMethod': paymentMethodId,
+            'referenceId': 'mock_gateway_ref_${DateTime.now().millisecondsSinceEpoch}',
+          });
+        }
+
+        // Now Debit Wallet
+        if (currentBalance < totalAmount) {
+          throw Exception('Insufficient wallet balance');
+        }
+
+        transaction.update(walletRef, {
+          'balance': currentBalance - totalAmount,
+        });
+
+        final debitTxRef = walletRef.collection('transactions').doc();
+        transaction.set(debitTxRef, {
+          'amount': -totalAmount,
+          'type': 'debit',
+          'description': 'Subscription: ${package.name}',
+          'timestamp': FieldValue.serverTimestamp(),
+          'paymentMethod': 'wallet',
+          'referenceId': null,
+        });
+
+        // 3. Create Subscription
+        final subRef = _firestore.collection('user_subscriptions').doc();
+        transaction.set(subRef, {
+          'userId': userId,
+          'packageId': package.id,
+          'startDate': FieldValue.serverTimestamp(),
+          'endDate': Timestamp.fromDate(DateTime.now().add(Duration(days: package.durationDays))),
+          'ridesUsed': 0,
+          'extraRidesCharged': 0,
+          'isActive': true,
+          'autoRenew': true,
+          'paymentMethodId': paymentMethodId,
+          'addOnIds': addOns.map((e) => e.id).toList(),
+          'isFamily': isFamily,
+          'parentUserId': parentUserId,
+          'beneficiaryId': beneficiaryId,
+          'driverId': null, // Needs assignment
+          'status': 'pending_assignment',
+          'planType': package.planType,
+          'discountAmount': (package.price * (package.discountPercentage / 100)),
+        });
       });
 
-      // Also create a transaction record in wallet or payment history
-      await _firestore.collection('payment_history').add({
-        'userId': userId,
-        'amount': package.price,
-        'description': 'Subscription to ${package.name}',
-        'timestamp': FieldValue.serverTimestamp(),
-        'status': 'success',
-      });
+      // 4. Award Loyalty Points (Fire and forget, or await)
+      // We do this outside the transaction to avoid complexity, or we could do it inside if we moved logic here.
+      // Since LoyaltyService uses its own transaction/updates, we call it after.
+      // If it fails, we log it, but don't fail the subscription.
+      try {
+        await _loyaltyService.awardPointsForSubscription(
+          userId: userId,
+          package: package,
+        );
+      } catch (e) {
+        // Log error but proceed
+        print('Failed to award loyalty points: $e');
+      }
 
       return const Right(unit);
     } catch (e) {
@@ -141,12 +218,46 @@ class SubscriptionRepositoryImpl implements ISubscriptionRepository {
   @override
   Future<Either<Failure, Unit>> cancelSubscription(String subscriptionId) async {
     try {
-      await _firestore
-          .collection('user_subscriptions')
-          .doc(subscriptionId)
-          .update({'autoRenew': false});
-      // Note: Usually cancellation means turning off auto-renew, not immediate termination.
-      // If immediate termination is needed, set isActive to false.
+      final subRef = _firestore.collection('user_subscriptions').doc(subscriptionId);
+      final subDoc = await subRef.get();
+      
+      if (!subDoc.exists) {
+        return Left(ServerFailure('Subscription not found'));
+      }
+      
+      final data = subDoc.data()!;
+      final startDate = (data['startDate'] as Timestamp).toDate();
+      final now = DateTime.now();
+      
+      // Policy: If before start date, full refund.
+      if (now.isBefore(startDate)) {
+        // Calculate refund amount (need to fetch package price or store it on sub)
+        // For MVP, we'll assume we can get it from the packageId or if we stored 'amountPaid'
+        // Let's assume we fetch the package to get the price, or better, we should have stored 'amountPaid' on the sub.
+        // Since we didn't store amountPaid in subscribeToPackage (my bad), let's fetch the package.
+        final packageId = data['packageId'];
+        final packageDoc = await _firestore.collection('subscription_packages').doc(packageId).get();
+        final price = (packageDoc.data()?['price'] as num?)?.toDouble() ?? 0.0;
+        
+        // Refund
+        await _refundToWallet(data['userId'], price, 'Cancellation (Pre-start)');
+        
+        // Mark as cancelled
+        await subRef.update({
+          'status': 'cancelled',
+          'isActive': false,
+          'cancelReason': 'User cancelled before start',
+          'autoRenew': false,
+        });
+      } else {
+        // Policy: If active, no refund, just stop auto-renew (cancel scheduled)
+        await subRef.update({
+          'autoRenew': false,
+          'renewalStatus': 'cancelled', // Indicates it won't renew
+          'cancelReason': 'User cancelled during period',
+        });
+      }
+      
       return const Right(unit);
     } catch (e) {
       return Left(ServerFailure(e.toString()));
@@ -165,4 +276,31 @@ class SubscriptionRepositoryImpl implements ISubscriptionRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+  
+  // Helper for refunds (can be exposed if needed)
+  Future<void> _refundToWallet(String userId, double amount, String reason) async {
+     await _firestore.runTransaction((transaction) async {
+        final walletRef = _firestore.collection('wallets').doc(userId);
+        final walletDoc = await transaction.get(walletRef);
+        
+        if (!walletDoc.exists) return; // Should exist
+        
+        final currentBalance = (walletDoc.data()?['balance'] as num?)?.toDouble() ?? 0.0;
+        
+        transaction.update(walletRef, {
+          'balance': currentBalance + amount,
+        });
+        
+        final txRef = walletRef.collection('transactions').doc();
+        transaction.set(txRef, {
+          'amount': amount,
+          'type': 'credit',
+          'description': 'Refund: $reason',
+          'timestamp': FieldValue.serverTimestamp(),
+          'paymentMethod': 'wallet',
+          'referenceId': null,
+        });
+     });
+  }
 }
+

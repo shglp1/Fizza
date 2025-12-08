@@ -81,12 +81,56 @@ class SafetyRepositoryImpl implements ISafetyRepository {
         'evidencePaths': report.evidencePaths,
         'timestamp': FieldValue.serverTimestamp(),
         'status': 'pending',
+        'isValid': false,
+        'rewardPointsGranted': false,
       });
       
-      // Trigger "Earn" logic (add points)
-      // In real app, this might be a Cloud Function trigger
-      await _firestore.collection('users').doc(report.reporterId).update({
-        'loyaltyPoints': FieldValue.increment(10), // 10 points for reporting
+      // Points are NOT awarded here. They are awarded upon approval.
+
+      return const Right(unit);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  Future<Either<Failure, Unit>> approveReport(String reportId, String adminId, int pointsToAward) async {
+    try {
+      final reportDoc = await _firestore.collection('safety_reports').doc(reportId).get();
+      if (!reportDoc.exists) return const Left(ServerFailure('Report not found'));
+      
+      final data = reportDoc.data()!;
+      final reporterId = data['reporterId'];
+      final timestamp = (data['timestamp'] as Timestamp).toDate();
+      
+      // Check Monthly Cap (3 rewarded reports per month)
+      final startOfMonth = DateTime(timestamp.year, timestamp.month, 1);
+      final endOfMonth = DateTime(timestamp.year, timestamp.month + 1, 0);
+      
+      final countSnapshot = await _firestore.collection('safety_reports')
+          .where('reporterId', isEqualTo: reporterId)
+          .where('rewardPointsGranted', isEqualTo: true)
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfMonth))
+          .where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endOfMonth))
+          .get();
+          
+      bool grantPoints = countSnapshot.docs.length < 3;
+      
+      await _firestore.runTransaction((transaction) async {
+        transaction.update(reportDoc.reference, {
+          'status': 'approved',
+          'isValid': true,
+          'approvedBy': adminId,
+          'approvedAt': FieldValue.serverTimestamp(),
+          'rewardPointsGranted': grantPoints,
+          'pointsAwarded': grantPoints ? pointsToAward : 0,
+        });
+        
+        if (grantPoints) {
+          final userRef = _firestore.collection('users').doc(reporterId);
+          transaction.update(userRef, {
+            'loyaltyPoints': FieldValue.increment(pointsToAward),
+          });
+        }
       });
 
       return const Right(unit);

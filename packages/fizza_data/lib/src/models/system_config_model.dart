@@ -6,6 +6,7 @@ class SystemConfigModel extends SystemConfigEntity {
     required super.subscription,
     required super.loyalty,
     required super.safety,
+    required super.operational,
   });
 
   factory SystemConfigModel.fromJson(Map<String, dynamic> json) {
@@ -14,6 +15,7 @@ class SystemConfigModel extends SystemConfigEntity {
       subscription: SubscriptionConfigModel.fromJson(json['subscription'] ?? {}),
       loyalty: LoyaltyConfigModel.fromJson(json['loyalty'] ?? {}),
       safety: SafetyConfigModel.fromJson(json['safety'] ?? {}),
+      operational: OperationalConfigModel.fromJson(json['operational'] ?? {}),
     );
   }
 
@@ -23,6 +25,7 @@ class SystemConfigModel extends SystemConfigEntity {
       'subscription': (subscription as SubscriptionConfigModel).toJson(),
       'loyalty': (loyalty as LoyaltyConfigModel).toJson(),
       'safety': (safety as SafetyConfigModel).toJson(),
+      'operational': (operational as OperationalConfigModel).toJson(),
     };
   }
   
@@ -35,7 +38,14 @@ class SystemConfigModel extends SystemConfigEntity {
         minFare: 10.0,
         cancellationFeeWindowHours: 72,
         cancellationFeeAmount: 10.0,
-        driverCommissionRate: 0.12,
+        driverCommissionRate: 0.15,
+        salaryPerDriver: 3000.0,
+        fuelPrice: 2.33,
+        maintenancePerMonth: 200.0,
+        depreciationPerMonth: 833.0,
+        insurancePerMonth: 150.0,
+        overheadPerUser: 50.0,
+        marginPercentage: 0.20,
       ),
       subscription: SubscriptionConfigModel(
         monthlyPlanPrice: 199.0,
@@ -44,19 +54,46 @@ class SystemConfigModel extends SystemConfigEntity {
         extraRidePrice: 8.0,
       ),
       loyalty: LoyaltyConfigModel(
-        pointsPerRide: 10,
-        pointsFemaleDriver: 5,
-        pointsMonthlySub: 50,
-        pointsLongTermSub: 150,
-        pointsSafetyReport: 20,
-        levelThresholds: {'level_1': 500, 'level_2': 2000},
+        pointsPerRide: 5,
+        pointsFemaleDriver: 10,
+        pointsMonthlySub: 30,
+        pointsLongTermSub: 100,
+        pointsSafetyReport: 40,
+        levelThresholds: {'bronze': 0, 'silver': 500, 'gold': 2000},
       ),
       safety: SafetyConfigModel(
         maxRewardedReportsPerMonth: 3,
         autoSuspendReportCount: 3,
       ),
+      operational: OperationalConfigModel(
+        operatingStartHour: 6,
+        operatingEndHour: 23,
+        maxPickupDistanceKm: 10.0,
+      ),
     );
   }
+}
+
+class OperationalConfigModel extends OperationalConfig {
+  const OperationalConfigModel({
+    required super.operatingStartHour,
+    required super.operatingEndHour,
+    required super.maxPickupDistanceKm,
+  });
+
+  factory OperationalConfigModel.fromJson(Map<String, dynamic> json) {
+    return OperationalConfigModel(
+      operatingStartHour: (json['operating_start_hour'] as num?)?.toInt() ?? 6,
+      operatingEndHour: (json['operating_end_hour'] as num?)?.toInt() ?? 23,
+      maxPickupDistanceKm: (json['max_pickup_distance_km'] as num?)?.toDouble() ?? 10.0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'operating_start_hour': operatingStartHour,
+    'operating_end_hour': operatingEndHour,
+    'max_pickup_distance_km': maxPickupDistanceKm,
+  };
 }
 
 class PricingConfigModel extends PricingConfig {
@@ -67,6 +104,13 @@ class PricingConfigModel extends PricingConfig {
     required super.cancellationFeeWindowHours,
     required super.cancellationFeeAmount,
     required super.driverCommissionRate,
+    required super.salaryPerDriver,
+    required super.fuelPrice,
+    required super.maintenancePerMonth,
+    required super.depreciationPerMonth,
+    required super.insurancePerMonth,
+    required super.overheadPerUser,
+    required super.marginPercentage,
   });
 
   factory PricingConfigModel.fromJson(Map<String, dynamic> json) {
@@ -76,7 +120,14 @@ class PricingConfigModel extends PricingConfig {
       minFare: (json['min_fare'] as num?)?.toDouble() ?? 10.0,
       cancellationFeeWindowHours: (json['cancellation_fee_window_hours'] as num?)?.toInt() ?? 72,
       cancellationFeeAmount: (json['cancellation_fee_amount'] as num?)?.toDouble() ?? 10.0,
-      driverCommissionRate: (json['driver_commission_rate'] as num?)?.toDouble() ?? 0.12,
+      driverCommissionRate: (json['driver_commission_rate'] as num?)?.toDouble() ?? 0.15,
+      salaryPerDriver: (json['salary_per_driver'] as num?)?.toDouble() ?? 3000.0,
+      fuelPrice: (json['fuel_price'] as num?)?.toDouble() ?? 2.33,
+      maintenancePerMonth: (json['maintenance_per_month'] as num?)?.toDouble() ?? 200.0,
+      depreciationPerMonth: (json['depreciation_per_month'] as num?)?.toDouble() ?? 833.0,
+      insurancePerMonth: (json['insurance_per_month'] as num?)?.toDouble() ?? 150.0,
+      overheadPerUser: (json['overhead_per_user'] as num?)?.toDouble() ?? 50.0,
+      marginPercentage: (json['margin_percentage'] as num?)?.toDouble() ?? 0.20,
     );
   }
 
@@ -87,6 +138,13 @@ class PricingConfigModel extends PricingConfig {
     'cancellation_fee_window_hours': cancellationFeeWindowHours,
     'cancellation_fee_amount': cancellationFeeAmount,
     'driver_commission_rate': driverCommissionRate,
+    'salary_per_driver': salaryPerDriver,
+    'fuel_price': fuelPrice,
+    'maintenance_per_month': maintenancePerMonth,
+    'depreciation_per_month': depreciationPerMonth,
+    'insurance_per_month': insurancePerMonth,
+    'overhead_per_user': overheadPerUser,
+    'margin_percentage': marginPercentage,
   };
 }
 
@@ -127,12 +185,12 @@ class LoyaltyConfigModel extends LoyaltyConfig {
 
   factory LoyaltyConfigModel.fromJson(Map<String, dynamic> json) {
     return LoyaltyConfigModel(
-      pointsPerRide: (json['points_per_ride'] as num?)?.toInt() ?? 10,
-      pointsFemaleDriver: (json['points_female_driver'] as num?)?.toInt() ?? 5,
-      pointsMonthlySub: (json['points_monthly_sub'] as num?)?.toInt() ?? 50,
-      pointsLongTermSub: (json['points_long_term_sub'] as num?)?.toInt() ?? 150,
-      pointsSafetyReport: (json['points_safety_report'] as num?)?.toInt() ?? 20,
-      levelThresholds: Map<String, int>.from(json['level_thresholds'] ?? {'level_1': 500, 'level_2': 2000}),
+      pointsPerRide: (json['points_per_ride'] as num?)?.toInt() ?? 5,
+      pointsFemaleDriver: (json['points_female_driver'] as num?)?.toInt() ?? 10,
+      pointsMonthlySub: (json['points_monthly_sub'] as num?)?.toInt() ?? 30,
+      pointsLongTermSub: (json['points_long_term_sub'] as num?)?.toInt() ?? 100,
+      pointsSafetyReport: (json['points_safety_report'] as num?)?.toInt() ?? 40,
+      levelThresholds: Map<String, int>.from(json['level_thresholds'] ?? {'bronze': 0, 'silver': 500, 'gold': 2000}),
     );
   }
 

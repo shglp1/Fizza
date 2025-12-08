@@ -71,9 +71,9 @@ class LoyaltyRepositoryImpl implements ILoyaltyRepository {
         // Level logic using config thresholds
         int newLevel = 1;
         final thresholds = config.loyalty.levelThresholds;
-        if (newPoints > (thresholds['level_2'] ?? 2000)) {
+        if (newPoints > (thresholds['gold'] ?? 2000)) {
           newLevel = 3;
-        } else if (newPoints > (thresholds['level_1'] ?? 500)) {
+        } else if (newPoints > (thresholds['silver'] ?? 500)) {
           newLevel = 2;
         }
 
@@ -174,14 +174,17 @@ class LoyaltyRepositoryImpl implements ILoyaltyRepository {
       final doc = await _firestore.collection('users').doc(userId).get();
       if (!doc.exists) return const Left(ServerFailure('User not found'));
 
+      final config = await _configDataSource.getConfig();
+      final thresholds = config.loyalty.levelThresholds;
+
       final data = doc.data()!;
       final points = (data['loyaltyPoints'] as num?)?.toInt() ?? 0;
       final level = (data['loyaltyLevel'] as num?)?.toInt() ?? 1;
       final badges = List<String>.from(data['badges'] ?? []);
 
       // Calculate next level threshold
-      int nextThreshold = 500;
-      if (level >= 2) nextThreshold = 2000;
+      int nextThreshold = thresholds['silver'] ?? 500;
+      if (level >= 2) nextThreshold = thresholds['gold'] ?? 2000;
       if (level >= 3) nextThreshold = 10000; // Cap
 
       return Right(GamificationProfileEntity(

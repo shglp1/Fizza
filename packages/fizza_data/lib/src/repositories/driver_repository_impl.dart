@@ -26,7 +26,7 @@ class DriverRepositoryImpl implements IDriverRepository {
           vehicleYear: data['vehicleYear'] ?? 2020,
           isOnline: data['isOnline'] ?? false,
           isAvailable: data['isAvailable'] ?? false,
-          commissionRate: (data['commissionRate'] as num?)?.toDouble() ?? 0.12,
+          commissionRate: (data['commissionRate'] as num?)?.toDouble() ?? 0.15,
           rating: (data['rating'] as num?)?.toDouble() ?? 5.0,
           ratingCount: data['ratingCount'] ?? 0,
           totalRides: data['totalRides'] ?? 0,
@@ -61,15 +61,50 @@ class DriverRepositoryImpl implements IDriverRepository {
   @override
   Future<Either<Failure, EarningsEntity>> getEarnings(String driverId) async {
     try {
-      // In a real app, calculate from 'trips' collection or a dedicated 'earnings' subcollection
-      // Mocking for now
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+
+      // Query trips for this driver
+      // Note: In a real production app with massive data, this should be an aggregated document updated by Cloud Functions.
+      // For MVP, we query recent trips.
+      final tripsSnapshot = await _firestore
+          .collection('trips')
+          .where('driverId', isEqualTo: driverId)
+          .where('status', isEqualTo: 'completed')
+          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfWeek))
+          .get();
+
+      double todayEarnings = 0;
+      double weekEarnings = 0;
+      int todayRides = 0;
+      int weekRides = 0;
+
+      for (var doc in tripsSnapshot.docs) {
+        final data = doc.data();
+        final amount = (data['driverEarnings'] as num?)?.toDouble() ?? 0.0;
+        final timestamp = (data['timestamp'] as Timestamp).toDate();
+
+        weekEarnings += amount;
+        weekRides++;
+
+        if (timestamp.isAfter(startOfDay)) {
+          todayEarnings += amount;
+          todayRides++;
+        }
+      }
+
+      // Total earnings would typically be stored in the driver profile or a separate stats doc
+      final driverDoc = await _firestore.collection('drivers').doc(driverId).get();
+      final totalEarnings = (driverDoc.data()?['totalEarnings'] as num?)?.toDouble() ?? 0.0;
+
       return Right(EarningsEntity(
         driverId: driverId,
-        todayEarnings: 150.0,
-        weekEarnings: 850.0,
-        totalEarnings: 3200.0,
-        todayRides: 5,
-        weekRides: 28,
+        todayEarnings: todayEarnings,
+        weekEarnings: weekEarnings,
+        totalEarnings: totalEarnings,
+        todayRides: todayRides,
+        weekRides: weekRides,
       ));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
@@ -81,6 +116,8 @@ class DriverRepositoryImpl implements IDriverRepository {
     return _firestore
         .collection('ride_requests')
         .where('status', isEqualTo: 'pending')
+        // NOTE: This logic supports the "On-Demand" feature which is currently OPTIONAL/FUTURE.
+        // The core business model is Fixed Subscription.
         // .where('nearbyDrivers', arrayContains: driverId) // In real app, use GeoFire or Cloud Functions to assign
         .snapshots()
         .map((snapshot) {
